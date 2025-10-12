@@ -94,9 +94,10 @@ module Data.YAP.PowerSeries (
     lambertTransform,
     inverseLambertTransform,
 
-    -- ** Euler transform
-    eulerTransform,
-    inverseEulerTransform,
+    -- ** Plethystic exponential (Euler transform)
+    pexp,
+    pexpInteger,
+    plog,
 
     -- * Ordinary generating functions
     -- ** Number sequences
@@ -388,6 +389,7 @@ atanhS = integral (fromCoefficients (cycle [one, zero]))
 --	\phi(x) = \prod_{k=1}^\infty (1-x^k)
 --	= \sum_{k = -\infty}^\infty (-1)^k x^{k(3k+1) \over 2}
 -- \]
+-- This is a special case of `pexp`.
 euler :: (Ring a) => PowerSeries a
 euler =
     expand [(sign k, k*(3*k+1) `div` 2) | k <- [0..]] +
@@ -838,70 +840,98 @@ inverseLambertTransform q = mulX p'
     p' = divX q - flatten (fromCoefficients (0 : [p' .^ k | k <- [2..]]))
 
 {- |
-A power series \(B(x)\) with \(b_0 = 1\) is the Euler transform of
-a series \(A(x)\) with \(a_0 = 0\) if
+The plethystic exponential (or Euler transform) of a series \(A(x)\)
+with \(a_0 = 0\) is
 
 \[
-	B(x)
+	PE[A](x)
 	= \prod_{n=1}^\infty {1 \over (1 - x^i)^{a_i}}
 	= \exp \left( \sum_{n=1}^\infty {A(x^n) \over n} \right)
 \]
 
-This can be expressed using a Lambert transform to an intermediate sequence:
+The product form implies that if the coefficients of \(A(x)\) are
+integers, so are the coefficients of \(PE[A](x)\) (and similarly for
+non-negative integers), but it doesn't seem possible to prove this to
+the type system (see 'pexpInteger').
+
+The exponential name is motivated by the properties
+
+prop> pexp 0 = 1
+prop> pexp (f + g) = pexp f * pexp g
+prop> pexp (- f) = recip (pexp f)
+
+The effect of this transform on sequences of coefficients can be expressed
+using a Lambert transform to an intermediate sequence:
 
 \[
 	C(x)
-	= x {d \over dx} \log(B(x))
+	= x {d \over dx} \log(PE[A](x))
 	= \sum_{n=1}^\infty x^n (A^\prime(x^n))
 \]
 
-The product form implies that if the coefficients of \(A(x)\) are
-non-negative integers, so are the coefficients of \(B(x)\), but it doesn't
-seem possible to prove this to the type system.
-
-Let \(P\) be a property of unlabelled graphs that holds of a graph if and
-only if it holds for each of the connected components of that graph.
+The transformation has a combinatorial interpretation.
+Let \(P\) be a property of unlabelled graphs that holds for a graph if
+and only if it holds for each of the connected components of that graph.
 Then if \(a_n\) is the number of connected graphs on \(n\) nodes with
-property \(P\), then \(b_n\) is the number of all graphs on \(n\) nodes
-with property \(P\).
+property \(P\), then \(PE[A]\) generates the sequence whose \(n\)th
+element is the number of graphs on \(n\) nodes with property \(P\).
+
+-}
+pexp :: (Eq a, FromRational a) => PowerSeries a -> PowerSeries a
+pexp a = expS `compose` divN (lambertTransform (mulN a))
+
+{- |
+'pexp' specialized to sequences of integers.
 
 === __Examples__
+
+The generating function for the number of ways to partition \(n\)
+unlabelled elements (<https://oeis.org/A000041 OEIS A000041>)
+is \( PE \left[\frac{x}{1-x}\right] \):
+
+>>> coefficients $ pexpInteger $ mulX recipOneMinus
+[1,1,2,3,5,7,11,15,22,30,42,56,77,101,135,176,231,297,385,490,...
+
+Its reciprocal, the Euler function
+(`euler`, <https://oeis.org/A010815 OEIS A010815>)
+can be obtained by negating the argument of 'pexp':
+
+>>> coefficients $ pexpInteger $ negate $ mulX recipOneMinus
+[1,-1,-1,0,0,1,0,1,0,0,0,0,-1,0,0,-1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,...
 
 Since \(n\)-node rooted unlabelled trees are in one-to-one correspondence
 with \(n-1\)-node forests of rooted unlabelled trees, we can define
 the ordinary generating function for the number of \(n\)-node rooted
 unlabelled trees (<https://oeis.org/A000081 OEIS A000081>):
 
->>> let rootedTrees = mulX (eulerTransform rootedTrees)
->>> map Data.Ratio.numerator $ coefficients rootedTrees
+>>> let rootedTrees = mulX (pexpInteger rootedTrees)
+>>> coefficients rootedTrees
 [0,1,1,2,4,9,20,48,115,286,719,1842,4766,12486,32973,87811,235381,...
 
-Counting unrooted trees (<https://oeis.org/A000055 OEIS A000055>) is
-more obscure:
+Counting unrooted trees (i.e. connected acyclic undirected graphs,
+<https://oeis.org/A000055 OEIS A000055>) cab be obtained with a formula
+due to Otter (cf. Flajolet & Sedgewick, /Analytic Combinatorics/, p. 481):
 
->>> let trees = 1 + rootedTrees + 0.5*(rootedTrees .^ 2 - rootedTrees^2)
->>> map Data.Ratio.numerator $ coefficients trees
+>>> let trees = 1 + rootedTrees - mapAdditive (`div` 2) (rootedTrees^2 - rootedTrees .^ 2)
+>>> coefficients trees
 [1,1,1,1,2,3,6,11,23,47,106,235,551,1301,3159,7741,19320,48629,123867,...
+
+(The numbers divided are always even.)
 
 Then the ordinary generating function for the number of acyclic undirected
 graphs on \(n\) nodes (<https://oeis.org/A005195 OEIS A005195>) is the
-Euler transform of @trees@:
+Euler transform of 'trees':
 
->>> map Data.Ratio.numerator $ coefficients $ eulerTransform $ trees-1
+>>> coefficients $ pexpInteger $ trees-1
 [1,1,2,3,6,10,20,37,76,153,329,710,1601,3658,8599,20514,49905,122963,...
 
 -}
-eulerTransform :: (Eq a, FromRational a) => PowerSeries a -> PowerSeries a
-eulerTransform a =
-    expS `compose` divN (lambertTransform (mulN a))
+pexpInteger :: PowerSeries Integer -> PowerSeries Integer
+pexpInteger = mapAdditive numerator . pexp . mapAdditive toRational
 
-{- |
-The inverse of 'eulerTransform'.
--}
-inverseEulerTransform ::
-    (Eq a, FromRational a) => PowerSeries a -> PowerSeries a
-inverseEulerTransform b =
-    divN (inverseLambertTransform (mulN (logOnePlus `compose` (b-1))))
+-- | The inverse of 'pexp'.
+plog :: (Eq a, FromRational a) => PowerSeries a -> PowerSeries a
+plog b = divN (inverseLambertTransform (mulN (logOnePlus `compose` (b-1))))
 
 -- | Multiply the \(n\)th term by \(n\).
 mulN :: (Semiring a) => PowerSeries a -> PowerSeries a
@@ -1250,7 +1280,8 @@ has generating function
 \]
 
 where \( T(n, k) \) is the number of partitions of \(n\) in which the
-greatest is \(k\):
+greatest is \(k\), and equivalently the number of partitions of \(n\)
+into \(k\) positive parts:
 
 >>> map (mapAdditive Data.Ratio.numerator) $ coefficients $ compose expS (lambertTransform (integral (divX monomials))) - 1
 [fromCoefficients [],
