@@ -19,12 +19,15 @@ module Data.YAP.Matrix.Square (
     Matrix(..), matrix,
     diagonal, transpose, determinant, adjugate,
     apply,
+    characteristicPolynomial,
     ) where
 
 import Prelude.YAP
 import Data.YAP.Algebra
 import Data.YAP.Vector
 import qualified Data.YAP.Matrix as Gen
+import qualified Data.YAP.Polynomial as Poly
+import Data.YAP.Polynomial (Polynomial)
 
 import GHC.TypeLits
 import qualified Data.List as List
@@ -132,3 +135,9 @@ dropOne (x:xs) = xs:map (x:) (dropOne xs)
 -- | Multiply a vector by a square matrix.
 apply :: (Semiring a) => Matrix n a -> Vector n a -> Vector n a
 apply (Square m) v = Gen.apply m v
+
+-- | The characteristic polynomial of a square matrix, \(det(x I - A)\),
+-- a monic polynomial of degree \(n\) whose roots are the eigenvalues of \(A\).
+characteristicPolynomial :: (KnownNat n, Ring a) => Matrix n a -> Polynomial a
+characteristicPolynomial m =
+    determinant (diagonal Poly.identity - fmap Poly.constant m)
