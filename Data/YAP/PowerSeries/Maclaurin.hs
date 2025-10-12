@@ -1033,7 +1033,7 @@ of endofunctions on a set of size \(n\) with exactly \(k\) cycles.
  fromCoefficients [0,142,95,18,1],
  fromCoefficients [0,1569,1220,305,30,1],...
 
-The sum of each row is \(\n^n\) (<https://oeis.org/A000312 OEIS A000312>),
+The sum of each row is \(n^n\) (<https://oeis.org/A000312 OEIS A000312>),
 which has exponential generating function \({1 \over 1-T(t)}\):
 
 >>> derivatives $ compose recipOneMinus tree
