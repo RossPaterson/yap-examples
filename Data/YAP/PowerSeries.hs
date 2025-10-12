@@ -1275,7 +1275,7 @@ The triangle of partition numbers (<https://oeis.org/A008284 OEIS A008284>)
 has generating function
 
 \[
-	\exp\left( \prod_{n=1}^\infty \frac{x^n}{n} \frac{t^n}{1-t^n} \right) - 1
+	\exp\left( \sum_{n=1}^\infty \frac{x^n}{n} \frac{t^n}{1-t^n} \right) - 1
 	= \sum_{n=0}^\infty \left( \sum_{k=0}^\infty T(n, k) x^k \right) t^n
 \]
 
