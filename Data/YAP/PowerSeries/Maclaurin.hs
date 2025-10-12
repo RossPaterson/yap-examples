@@ -1231,6 +1231,9 @@ where \(m_n\) is the \(n\)th moment of the distribution of \(X\).
   then its MGF is \(f(e^t)\).  We can't express this using 'compose'
   (because the constant term of \(e^t\) is non-zero), but can often find
   an equivalent expression.
+
+* The logarithm of the moment generating function of a distribution is
+  its cumulant generating function.
 -}
 
 -- | The distribution of a single Bernoulli trial with probability \(p\)
