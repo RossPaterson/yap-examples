@@ -589,7 +589,7 @@ yielding the ordinary generating function of a polynomial sequence.
 
 === __Examples__
 
-* The Catalan or Narayana triangle
+* Another definition of the Catalan or Narayana triangle
 (<https://oeis.org/A090181 OEIS A090181>):
 
 >>> coefficients $ delta (cycle [0, 1]) (cycle [1, 0])
@@ -1270,6 +1270,22 @@ has the generating function \( 1 \over \sqrt{1 - 2xt + t^2} \):
  fromCoefficients [0 % 1,(-3) % 2,0 % 1,5 % 2],
  fromCoefficients [3 % 8,0 % 1,(-15) % 4,0 % 1,35 % 8],
  fromCoefficients [0 % 1,15 % 8,0 % 1,(-35) % 4,0 % 1,63 % 8],...
+
+The Catalan or Narayana triangle (<https://oeis.org/A090181 OEIS A090181>)
+has a generating function \(A(x,t)\)
+satisfying \(A(x,t) = 1 + {x t A(x,t) \over 1 - t A(x,t)}\):
+
+>>> narayama = 1 + constant Poly.identity * (mulX recipOneMinus `compose` mulX narayama)
+>>> coefficients narayama
+[fromCoefficients [1],
+ fromCoefficients [0,1],
+ fromCoefficients [0,1,1],
+ fromCoefficients [0,1,3,1],
+ fromCoefficients [0,1,6,6,1],
+ fromCoefficients [0,1,10,20,10,1],...
+
+Row sums (i.e. \(x = 1\)) are Catalan numbers
+(<https://oeis.org/A000108 OEIS A000108>).
 
 The triangle of partition numbers (<https://oeis.org/A008284 OEIS A008284>)
 has generating function
