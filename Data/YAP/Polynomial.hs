@@ -27,7 +27,6 @@ module Data.YAP.Polynomial (
     coefficients,
     unsafeCoefficients,
     evaluate,
-    evaluateWith,
     pretty,
     -- * Composition
     identity,
@@ -200,12 +199,6 @@ degree a = max 0 (length (rev_coefficients a) - 1)
 evaluate :: (Semiring a) => Polynomial a -> a -> a
 evaluate (P as) x = foldr (\ a v -> a + x*v) zero as
 
--- | Evaluate a polynomial for a given value of @x@, using the given
--- function to combine coefficients and powers.
-evaluateWith :: (Semiring b, AdditiveMonoid c) =>
-    (a -> b -> c) -> Polynomial a -> b -> c
-evaluateWith f (P as) x = sum (zipWith f as (iterate (*x) one))
-
 -- other functions
 
 -- | Pretty-print a polynomial, e.g.
@@ -242,7 +235,7 @@ identity = fromCoefficients [zero, one]
 --
 -- @'evaluate' ('compose' a b) = 'evaluate' a . 'evaluate' b@
 compose :: (Semiring a) => Polynomial a -> Polynomial a -> Polynomial a
-compose = evaluateWith (\ a -> mapAdditive (a*))
+compose = evaluate . mapAdditive constant
 
 -- | Maps a function \(f(x)\) to \(f(a x)\), equivalent to composition
 -- with @a*'identity'@.
