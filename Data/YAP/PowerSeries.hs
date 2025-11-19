@@ -63,7 +63,7 @@ module Data.YAP.PowerSeries (
     -- * Special series
     recipOneMinus,
     expS,
-    logOnePlus,
+    logRecipOneMinus,
     powerOnePlus,
     euler,
     -- ** Trigonometric functions
@@ -326,10 +326,10 @@ recipOneMinus = fromCoefficients (repeat one)
 expS :: (FromRational a) => PowerSeries a
 expS = fromDerivatives (repeat one)
 
--- | \(\log (1+x) = x - \frac{x^2}{2} + \frac{x^3}{3} - \frac{x^4}{4} + \ldots \),
+-- | \(\log {1 \over 1+x} = - \log (1 - x) = x + \frac{x^2}{2} + \frac{x^3}{3} + \frac{x^4}{4} + \ldots \),
 -- converges for \(-1 < x \leq 1\)
-logOnePlus :: (FromRational a) => PowerSeries a
-logOnePlus = integral (fromCoefficients (cycle [1, -1]))
+logRecipOneMinus :: (FromRational a) => PowerSeries a
+logRecipOneMinus = integral recipOneMinus
 
 -- | \( (1 + x)^a = \sum_{n=0}^\infty \binom{a}{n} x^n \) (binomial series),
 -- converges for \(|x| < 1\)
@@ -867,7 +867,7 @@ pexpInteger = mapAdditive numerator . pexp . mapAdditive toRational
 
 -- | The inverse of 'pexp'.
 plog :: (Eq a, FromRational a) => PowerSeries a -> PowerSeries a
-plog b = divN (inverseLambertTransform (mulN (logOnePlus `compose` (b-1))))
+plog b = divN (inverseLambertTransform (mulN (negate logRecipOneMinus `compose` (1-b))))
 
 -- | Multiply the \(n\)th term by \(n\).
 mulN :: (Semiring a) => PowerSeries a -> PowerSeries a

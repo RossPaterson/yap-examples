@@ -67,7 +67,7 @@ module Data.YAP.PowerSeries.Maclaurin (
     -- * Special series
     recipOneMinus,
     expS,
-    logOnePlus,
+    logRecipOneMinus,
     powerOnePlus,
     powerRatio,
     tree,
@@ -365,9 +365,9 @@ recipOneMinus = fromCoefficients (repeat one)
 expS :: (Semiring a) => PowerSeries a
 expS = fromDerivatives (repeat one)
 
--- | \(\log (1+x)\), converges for \(-1 < x \leq 1\)
-logOnePlus :: (Ring a) => PowerSeries a
-logOnePlus = integral (fromCoefficients (cycle [1, -1]))
+-- | \(\log {1 \over 1+x} = - \log (1 - x)\), converges for \(-1 < x \leq 1\)
+logRecipOneMinus :: (Semiring a) => PowerSeries a
+logRecipOneMinus = integral recipOneMinus
 
 -- | \((1 + x)^a\), converges for \(|x| < 1\)
 powerOnePlus :: (Ring a) => a -> PowerSeries a
@@ -912,14 +912,13 @@ generating function
 		\left( \sum_{k=0}^n c(n,k) x^k \right) \frac{t^n}{n!}
 	= {1 \over (1-t)^x}
 	= e^{x \log {1 \over 1-t}}
-	= e^{x \int_0^t {du \over 1 - u}}
 \]
 
 where the coefficients \(c(n,k)\) are unsigned Stirling numbers of the
 first kind (<https://oeis.org/A132393 OEIS A132393>), the number of
 permutations of \(n\) elements that have exactly \(k\) cycles.
 
->>> derivatives $ binomialType (integral recipOneMinus)
+>>> derivatives $ binomialType logRecipOneMinus
 [fromCoefficients [1],
  fromCoefficients [0,1],
  fromCoefficients [0,1,1],
@@ -932,7 +931,7 @@ The usual Stirling numbers of the first kind \(s(n,k)\)
 sequence of falling factorial polynomial, which have the exponential
 generating function \( e^{x \log(1 + t)} \):
 
->>> derivatives $ binomialType logOnePlus
+>>> derivatives $ binomialType $ negate $ logRecipOneMinus .* (-1)
 [fromCoefficients [1],
  fromCoefficients [0,1],
  fromCoefficients [0,-1,1],
