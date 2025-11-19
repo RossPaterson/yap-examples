@@ -110,7 +110,7 @@ module Data.YAP.PowerSeries (
     GradedLanguage,
     string,
 
-    -- * Polynomial sequences
+    -- * Polynomial sequences #polynomial_sequences#
     -- $polynomial_sequences
     constants,
     monomials,
