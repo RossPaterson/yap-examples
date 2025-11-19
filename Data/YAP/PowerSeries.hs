@@ -1244,6 +1244,9 @@ into \(k\) positive parts:
  fromCoefficients [0,1,2,2,1,1],
  fromCoefficients [0,1,3,3,2,1,1],...
 
+Row sums (i.e. \(x = 1\)) are the number of ways to partition \(n\)
+unlabelled elements (<https://oeis.org/A000041 OEIS A000041>).
+
 -}
 
 -- | Promotion of a power series to a power series of constant polynomials
