@@ -326,7 +326,7 @@ recipOneMinus = fromCoefficients (repeat one)
 expS :: (FromRational a) => PowerSeries a
 expS = fromDerivatives (repeat one)
 
--- | \(\log {1 \over 1+x} = - \log (1 - x) = x + \frac{x^2}{2} + \frac{x^3}{3} + \frac{x^4}{4} + \ldots \),
+-- | \(\log {1 \over 1-x} = - \log (1 - x) = x + \frac{x^2}{2} + \frac{x^3}{3} + \frac{x^4}{4} + \ldots \),
 -- converges for \(-1 < x \leq 1\)
 logRecipOneMinus :: (FromRational a) => PowerSeries a
 logRecipOneMinus = integral recipOneMinus
@@ -885,9 +885,9 @@ may be extracted using 'coefficients'.
 
 === Examples
 
-* The generating function of \( \{ {1 \over k} \} \) is
+* The generating function of \( \{ {1 \over k} \} \) is \(\log {1 \over 1-x}\):
 
->>> coefficients $ integral recipOneMinus
+>>> coefficients logRecipOneMinus
 [0 % 1,1 % 1,1 % 2,1 % 3,1 % 4,1 % 5,1 % 6,1 % 7,1 % 8,...
 
 * Multiplying a generating function by \( {1 \over 1-x} \) generates a
@@ -896,7 +896,7 @@ An example is the Harmonic numbers \(H_n = \sum_{k=1}^n {1 \over k}\)
 (<https://oeis.org/A001008 OEIS A001008> over
 <https://oeis.org/A002805 OEIS A002805>):
 
->>> coefficients $ recipOneMinus * integral recipOneMinus
+>>> coefficients $ recipOneMinus * logRecipOneMinus
 [0 % 1,1 % 1,3 % 2,11 % 6,25 % 12,137 % 60,49 % 20,363 % 140,...
 
 * The Mertens function (<https://oeis.org/A002321 OEIS A002321>) consists of
