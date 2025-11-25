@@ -35,6 +35,7 @@ module Data.YAP.DirichletSeries (
 
     -- * Special compositions
     (.-),
+    (.+),
     (.*),
 
     -- * Special series
@@ -98,7 +99,7 @@ import Data.YAP.Utilities.List
 import Data.List (intercalate, sort)
 import Numeric.Natural
 
-infixl 9 .-
+infixl 9 .-, .+
 infixl 9 .*
 infixl 7 `divSimple`
 
@@ -271,6 +272,17 @@ so does \(f(s - k)\).
 f .- k
   | k < 0 = error "negative argument to (.-)"
   | otherwise = unsafeMapWithIndex (\ n a -> atimes (toInteger n ^ k) a) f
+
+{- |
+Maps a function \(f(s)\) to \(f(s + k)\),
+by dividing the \(n\)th coefficient by \(n^k\).
+
+If @k@ is non-negative, @f .- k = f .+ (-k)@, but the former has a more
+general type.
+-}
+(.+) :: (FromRational a) => DirichletSeries a -> Int -> DirichletSeries a
+f .+ k =
+    unsafeMapWithIndex (\ n a -> fromRational (toRational n ^^ (-k))*a) f
 
 {- |
 Maps a function \(f(s)\) to \(f(k s)\) for positive \(k\), by moving
