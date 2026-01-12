@@ -856,7 +856,7 @@ due to Otter (cf. Flajolet & Sedgewick, /Analytic Combinatorics/, p. 481):
 
 Then the ordinary generating function for the number of acyclic undirected
 graphs on \(n\) nodes (<https://oeis.org/A005195 OEIS A005195>) is the
-Euler transform of 'trees':
+Euler transform of @trees@:
 
 >>> coefficients $ pexpInteger $ trees-1
 [1,1,2,3,6,10,20,37,76,153,329,710,1601,3658,8599,20514,49905,122963,...
