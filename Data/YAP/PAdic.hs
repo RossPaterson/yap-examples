@@ -29,6 +29,7 @@ module Data.YAP.PAdic(
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.Classes
 import Data.YAP.Ratio
 import Data.YAP.PowerSeries
 

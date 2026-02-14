@@ -30,6 +30,7 @@ module Data.YAP.WeylAlgebra (
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.Classes
 import Data.YAP.Polynomial (Polynomial)
 import qualified Data.YAP.Polynomial as P
 import Data.YAP.Utilities.List

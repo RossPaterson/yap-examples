@@ -126,6 +126,7 @@ module Data.YAP.PowerSeries.Maclaurin (
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.Classes
 import Data.YAP.FiniteMap hiding (constant)
 import qualified Data.YAP.Polynomial as Poly
 import Data.YAP.Polynomial (Polynomial, RationalFunction)

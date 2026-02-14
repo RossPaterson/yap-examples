@@ -34,6 +34,7 @@ module Data.YAP.PowerSeries.General (
     ) where
 
 import Prelude.YAP
+import Data.YAP.Classes
 import Data.YAP.Algebra
 
 -- | A formal series of the form

@@ -95,6 +95,7 @@ module Data.YAP.DirichletSeries (
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.Classes
 import Data.YAP.PowerSeries (PowerSeries)
 import qualified Data.YAP.PowerSeries as PS
 import Data.YAP.Utilities.List

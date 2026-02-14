@@ -17,6 +17,7 @@ Library
     Build-Depends:
                 base >= 4.18 && < 5, containers > 0.5 && < 1, yap == 0.3.*
     Exposed-Modules:
+                Data.YAP.Classes
                 Data.YAP.CliffordAlgebra
                 Data.YAP.DifferentialOperator
                 Data.YAP.DirichletSeries

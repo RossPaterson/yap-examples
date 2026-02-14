@@ -31,6 +31,7 @@ module Data.YAP.DifferentialOperator (
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.Classes
 import Data.YAP.Polynomial (Polynomial)
 import Data.YAP.Utilities.List
 

@@ -158,6 +158,7 @@ module Data.YAP.PowerSeries (
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.Classes
 import Data.YAP.FiniteMap hiding (constant)
 import Data.YAP.FiniteSet
 import qualified Data.YAP.Polynomial as Poly

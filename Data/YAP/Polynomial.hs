@@ -39,6 +39,7 @@ module Data.YAP.Polynomial (
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.Classes
 import qualified Data.YAP.Utilities.List as List
 import Data.Ratio
 
