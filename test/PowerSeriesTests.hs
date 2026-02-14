@@ -40,7 +40,7 @@ equations =
         ("P=D atanh", PS.atanhS, DS.atanhS)] ++
     map (equation PS.coefficients PS.coefficients) [
         ("P compose exp log", PS.compose PS.expS PS.logRecipOneMinus, PS.recipOneMinus),
-        ("P compose log exp", PS.compose PS.logRecipOneMinus PS.recipOneMinus, PS.identity),
+        ("P compose log exp", PS.compose PS.logRecipOneMinus (1 - PS.expS), negate PS.identity),
         -- trigonometric functions
         ("P sin^2 + cos^2 = 1", PS.sinS^(2::Int) + PS.cosS^(2::Int), 1),
         ("P cos * sec = 1", PS.cosS * PS.secS, 1),
@@ -59,7 +59,7 @@ equations =
         ("P inverse tanh atanh", PS.inverse PS.tanhS, PS.atanhS)] ++
     map (equation DS.coefficients DS.coefficients) [
         ("D compose exp log", DS.compose DS.expS DS.logRecipOneMinus, DS.recipOneMinus),
-        ("D compose log exp", DS.compose DS.logRecipOneMinus DS.recipOneMinus, DS.identity),
+        ("D compose log exp", DS.compose DS.logRecipOneMinus (1 - DS.expS), negate DS.identity),
         ("D tree", DS.inverseSimple (DS.mulX (DS.expS DS..* (-1))), DS.tree),
         ("D lambertW", DS.inverseSimple (DS.mulX DS.expS), DS.lambertW),
         -- trigonometric functions

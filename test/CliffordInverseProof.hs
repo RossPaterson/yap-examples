@@ -16,7 +16,7 @@ import GHC.TypeLits
 
 -- Multivectors with variable coefficients
 
-type GenMultivector p q = Multivector p q 0 (GenPolynomial Xs Int)
+type GenMultivector p q = Multivector p q 0 (MultiPolynomial Xs Int)
 type Inverter p q = GenMultivector p q -> GenMultivector p q
 
 -- general multivector with a distinct variable for each combination
@@ -26,7 +26,7 @@ genMV = genMVAux natSing natSing
 
 genMVAux :: (KnownNat p, KnownNat q) => SNat p -> SNat q -> GenMultivector p q
 genMVAux sing_p sing_q =
-    sum [scalar (genIndeterminate (X k)) * product [basic i | i <- is] |
+    sum [scalar (indeterminate (X k)) * product [basic i | i <- is] |
         (k, is) <- zip (iterate (+one) one) (subsequences [0..p+q-1])]
   where
     p = intVal sing_p
