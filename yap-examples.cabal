@@ -43,7 +43,6 @@ Library
                 Data.YAP.Tropical
                 Data.YAP.UnitInterval
                 Data.YAP.Vector
-                Data.YAP.WeylAlgebra
     Other-Modules:
                 Data.YAP.Utilities.LinearEquations
                 Data.YAP.Utilities.List
