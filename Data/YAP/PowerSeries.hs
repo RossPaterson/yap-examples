@@ -67,19 +67,9 @@ module Data.YAP.PowerSeries (
     powerOnePlus,
     euler,
     -- ** Trigonometric functions
-    sinS,
-    cosS,
-    secS,
-    tanS,
-    asinS,
-    atanS,
+    sinS, cosS, secS, tanS, asinS, atanS,
     -- ** Hyperbolic functions
-    sinhS,
-    coshS,
-    sechS,
-    tanhS,
-    asinhS,
-    atanhS,
+    sinhS, coshS, sechS, tanhS, asinhS, atanhS,
 
     -- * Continued fractions
     stieltjes,
@@ -98,6 +88,7 @@ module Data.YAP.PowerSeries (
     pexp,
     pexpInteger,
     plog,
+    signedPexp,
 
     -- * Ordinary generating functions
     -- ** Number sequences
@@ -110,6 +101,12 @@ module Data.YAP.PowerSeries (
     GradedLanguage,
     string,
 
+    -- * Probability generating functions #PGF#
+    -- $pgf
+    bernoulliPGF,
+    geometricPGF,
+    poissonPGF,
+
     -- * Polynomial sequences #polynomial_sequences#
     -- $polynomial_sequences
     constants,
@@ -117,23 +114,59 @@ module Data.YAP.PowerSeries (
     riordan,
     delta,
 
-    -- * Probability generating functions #PGF#
-    -- $pgf
-    bernoulliPGF,
-    geometricPGF,
-    poissonPGF,
+    -- ** Necklace polynomials #necklace_polynomials#
+    -- $necklace_polynomials
+
+    -- ** Polynomial sequence transforms
+    lambertTransform2,
+    inverseLambertTransform2,
+
+    pexp2,
+    plog2,
+
+    -- * Multi-variable polynomial sequences #Multi_variable_sequences#
+    ordXs,
+    logXs,
+
+    -- ** Cycle index polynomials #Cycle_index_polynomials#
+    -- *** Major permutation groups
+    identityCycleIndices,
+    reversalCycleIndices,
+    cyclicCycleIndices,
+    dihedralCycleIndices,
+    symmetricCycleIndices,
+    alternatingCycleIndices,
+
+    -- *** Derived groups
+    pairCycleIndex,
+    orderedPairCycleIndex,
+
+    -- *** Pólya enumeration
+    polyaEnumeration,
+    equivalenceClasses,
+
+    -- ** Symmetric polynomials
+    -- $symmetric_polynomials
+
+    -- ** Counting integer compositions
+    -- $integer_compositions
+
+    -- ** Counting noncrossing partitions
+    -- $noncrossing_partitions
 
   ) where
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.FiniteMap hiding (constant)
 import Data.YAP.FiniteSet
 import qualified Data.YAP.Polynomial as Poly
 import Data.YAP.Polynomial (Polynomial, RationalFunction)
 import Data.YAP.Ratio
 import Data.YAP.Utilities.List (longZipWith)
 
-import Data.List (intercalate)
+import Data.List (intercalate, tails)
+import Numeric.Natural
 
 infixl 9 .^
 infixl 9 .*
@@ -206,7 +239,7 @@ fromDerivatives :: (FromRational a) => [a] -> PowerSeries a
 fromDerivatives as = fromCoefficients (zipWith (*) (map coeff factorials) as)
   where
     coeff n = fromRational (1%n)
-    factorials = scanl (*) (1::Integer) [1..]
+    factorials = scanl (*) 1 [1..]
 
 instance (AdditiveMonoid a) => AdditiveMonoid (PowerSeries a) where
     PS as + PS bs = PS (add as bs)
@@ -282,8 +315,8 @@ modStream f g
   | atZero g == zero = atZero f:modStream (divX f) (divX g)
   | otherwise = []
 
--- | Reduce a power series \( \sum_{n=0} p_n(x) x^n \) with power series
--- coefficients to a simple power series.
+-- | Reduce a nested power series \( \sum_{n=0} p_n(x) y^n \)
+-- to a simple power series \( \sum_{n=0} p_n(x) x^n \).
 flatten :: (AdditiveMonoid a) => PowerSeries (PowerSeries a) -> PowerSeries a
 flatten (PS ps) = foldr add_shifted zero ps
   where
@@ -781,7 +814,9 @@ with \(a_0 = 0\) is
 
 \[
 	PE[A](x)
-	= \prod_{n=1}^\infty {1 \over (1 - x^i)^{a_i}}
+	= \prod_{k=1}^\infty {1 \over (1 - x^k)^{a_k}}
+	= \exp \left( \sum_{k=1}^\infty a_k \log {1 \over (1 - x^k)} \right)
+	= \exp \left( \sum_{k=1}^\infty \sum_{n=1}^\infty {a_k x^{nk} \over n} \right)
 	= \exp \left( \sum_{n=1}^\infty {A(x^n) \over n} \right)
 \]
 
@@ -797,24 +832,71 @@ prop> pexp (f + g) = pexp f * pexp g
 prop> pexp (- f) = recip (pexp f)
 
 The effect of this transform on sequences of coefficients can be expressed
-using a Lambert transform to an intermediate sequence:
+applying a Lambert transform to an intermediate sequence:
 
 \[
 	C(x)
 	= x {d \over dx} \log(PE[A](x))
-	= \sum_{n=1}^\infty x^n (A^\prime(x^n))
+	= \sum_{n=1}^\infty x {d \over dx} {A(x^n) \over n}
+	= \sum_{n=1}^\infty x^n A^\prime(x^n)
 \]
 
 The transformation has a combinatorial interpretation.
-Let \(P\) be a property of unlabelled graphs that holds for a graph if
-and only if it holds for each of the connected components of that graph.
-Then if \(a_n\) is the number of connected graphs on \(n\) nodes with
-property \(P\), then \(PE[A]\) generates the sequence whose \(n\)th
-element is the number of graphs on \(n\) nodes with property \(P\).
+If \(a_n\) is the number of objects of some kind of size \(n\),
+then \(PE[A]\) generates the sequence whose \(n\)th element is the number
+of multisets of these objects having total size \(n\).  For example,
+any graph is equivalent to a multiset of connected graphs, so if \(a_n\)
+is the number of connected graphs on \(n\) nodes, then \(PE[A]\) generates
+the sequence whose \(n\)th element is the number of graphs on \(n\) nodes.
 
 -}
 pexp :: (Eq a, FromRational a) => PowerSeries a -> PowerSeries a
 pexp a = expS `compose` divN (lambertTransform (mulN a))
+
+{- |
+The signed plethystic exponential of a series \(A(x)\) with \(a_0 = 0\) is
+
+\[
+	PE_{(-)}[A](x)
+	= \prod_{k=1}^\infty (1 + x^k)^{a_k}
+	= \exp \left( \sum_{k=1}^\infty a_k \log (1 + x^k) \right)
+	= \exp \left( \sum_{k=1}^\infty \sum_{n=1}^\infty {(-1)^{n-1} a_k x^{nk} \over n} \right)
+	= \exp \left( \sum_{n=1}^\infty {(-1)^{n-1} A(x^n) \over n} \right)
+\]
+
+The effect of this transform on sequences of coefficients can be expressed
+applying a Lambert transform to an intermediate sequence:
+
+\[
+	C(x)
+	= x {d \over dx} \log(PE_{(-)}[A](x))
+	= \sum_{n=1}^\infty x {d \over dx} {(-1)^{n-1} A(x^n) \over n}
+	= \sum_{n=1}^\infty (-1)^{n-1} x^n A^\prime(x^n)
+\]
+
+The transformation has a combinatorial interpretation.
+If \(a_n\) is the number of objects of some kind of size \(n\),
+then \(PE[A]\) generates the sequence whose \(n\)th element is the number
+of sets of these objects having total size \(n\).
+
+=== __Example__
+
+The number of ways to partition \(n\) unlabelled elements into parts
+of distinct sizes or equivalently the number of partitions into odd parts
+(<https://oeis.org/A000009 OEIS A000009>) is generated by
+
+>>> map Data.Ratio.numerator $ coefficients $ signedPexp recipOneMinus
+[1,1,1,2,2,3,4,5,6,8,10,12,15,18,22,27,32,38,46,54,64,76,89,104,...
+
+-}
+signedPexp :: (Eq a, FromRational a) => PowerSeries a -> PowerSeries a
+signedPexp a = expS `compose` divN (signedLambertTransform (mulN a))
+
+signedLambertTransform :: (Ring a) => PowerSeries a -> PowerSeries a
+signedLambertTransform p =
+    flatten $ mulX $ fromCoefficients [p' .^ k | k <- [1..]] .* (-1)
+  where
+    p' = divX p
 
 {- |
 'pexp' specialized to sequences of integers.
@@ -845,7 +927,7 @@ unlabelled trees (<https://oeis.org/A000081 OEIS A000081>):
 [0,1,1,2,4,9,20,48,115,286,719,1842,4766,12486,32973,87811,235381,...
 
 Counting unrooted trees (i.e. connected acyclic undirected graphs,
-<https://oeis.org/A000055 OEIS A000055>) cab be obtained with a formula
+<https://oeis.org/A000055 OEIS A000055>) can be obtained with a formula
 due to Otter (cf. Flajolet & Sedgewick, /Analytic Combinatorics/, p. 481):
 
 >>> let trees = 1 + rootedTrees - mapAdditive (`div` 2) (rootedTrees^2 - rootedTrees .^ 2)
@@ -933,7 +1015,7 @@ central binomial coefficients \( \binom{2n}{n} = {(2n!) \over {n!}^2} \)
 (<https://oeis.org/A000041 OEIS A000041>) is generated by the reciprocal
 of 'euler'.
 (This is the number of terms in the \(n\)th Bell polynomial:
-see "Data.YAP.FiniteMap#g:Bell_polynomials".)
+see "Data.YAP.PowerSeries.Maclaurin#g:Bell_polynomials".)
 
 >>> coefficients $ recipSimple euler
 [1,1,2,3,5,7,11,15,22,30,42,56,77,101,135,176,231,297,385,490,...
@@ -1120,6 +1202,48 @@ type GradedLanguage a = PowerSeries (FiniteLanguage a)
 string :: (Ord a) => [a] -> GradedLanguage a
 string s = fromCoefficients (replicate (length s) zero ++ [singleton s])
 
+{- $pgf
+A power series whose coefficients sum to 1 may encode the probabilites of
+each possible value of a natural number-valued random variable \(X\),
+i.e. \( p_k = \Pr(X = k) \).
+Such a series is then the probability generating function \(E[z^X]\).
+
+* `one` is the PGF for the constant random variable with value 0.
+
+* `identity` is the PGF for the constant random variable with value 1.
+
+* If @pX@ is the PGF for the random variable \(X\), then the PGF for
+  \(c X\) for natural number \(c\) is @pX .^ c@.
+
+* The product of PGFs for independent random variables \(X\) and \(Y\)
+  is the PGF for \(X+Y\).
+
+* The sum of the coefficients of the derivative of a PGF is the expected
+  value of the random variable.
+-}
+
+-- | The distribution of a single Bernoulli trial with probability \(p\)
+-- of success has generating function \((1-p) + p z\).
+--
+-- Powers of this distribution yield the binomial distribution.
+bernoulliPGF :: (Ring a) => a -> PowerSeries a
+bernoulliPGF p = fromCoefficients [1-p, p]
+
+-- | The geometric distribution, of the number of Bernoulli trials with
+-- probability \(p\) before the first success,
+-- has generating function \( {p \over 1 - (1-p)z} \).
+--
+-- Powers of this distribution yield the negative binomial or Pascal
+-- distribution.
+geometricPGF :: (Ring a) => a -> PowerSeries a
+geometricPGF p = constant p * (recipOneMinus .* (1-p))
+
+-- | The Poisson distribution with parameter \(\lambda\), of the number
+-- of events with mean rate \(\lambda\) occurring in an interval,
+-- has generating function \( e^{\lambda(z-1)} \).
+poissonPGF :: (Floating a) => a -> PowerSeries a
+poissonPGF l = constant (exp l) * expS .* l
+
 {- $polynomial_sequences
 A polynomial sequence is a sequence of polynomials \(\{p_n(x)\}\)
 where each polynomial \(p_n\) has degree at most \(n\), so that
@@ -1134,7 +1258,8 @@ by ordinary generating functions of the form
 
 For convenience, define
 
->>> let x = Data.YAP.Polynomial.identity
+>>> import qualified Data.YAP.Polynomial as Poly
+>>> let x = Poly.identity
 
 The sequence of polynomials with binomial coefficients
 (Pascal's triangle, <https://oeis.org/A007318 OEIS A007318>)
@@ -1381,44 +1506,587 @@ delta r s =
 
 -- A085880 = delta (repeat one) (repeat one)
 
-{- $pgf
-A power series whose coefficients sum to 1 may encode the probabilites of
-each possible value of a natural number-valued random variable \(X\),
-i.e. \( p_k = \Pr(X = k) \).
-Such a series is then the probability generating function \(E[z^X]\).
+{- $necklace_polynomials
 
-* `one` is the PGF for the constant random variable with value 0.
+The polynomials \(n M_n(x)\) of the Möbius triangle
+(<https://oeis.org/A363914 OEIS A363914>) satisfy
+ 
+\[ x^n = \sum_{d \mid n} d M_d(x) \]
+ 
+so they can be obtained from the series of monomials by Möbius inversion:
+ 
+>>> coefficients $ inverseLambertTransform monomials
+[fromCoefficients [],
+ fromCoefficients [0,1],
+ fromCoefficients [0,-1,1],
+ fromCoefficients [0,-1,0,1],
+ fromCoefficients [0,0,-1,0,1],
+ fromCoefficients [0,-1,0,0,0,1],
+ fromCoefficients [0,1,-1,-1,0,0,1],
+ fromCoefficients [0,-1,0,0,0,0,0,1],
+ fromCoefficients [0,0,0,0,-1,0,0,0,1],...
 
-* `identity` is the PGF for the constant random variable with value 1.
+\(n M_n(k)\) gives the number of aperiodic strings of length \(n\) drawn
+from \(k\) letters (<https://oeis.org/A143324 OEIS A143324>).
+Hence \(M_n(k)\) is the number of aperiodic necklaces on \(n\) beads
+with at most \(k\) colours (<https://oeis.org/A074650 OEIS A074650>)
+and the necklace polynomials \(M_n(x)\) are generated by:
 
-* If @pX@ is the PGF for the random variable \(X\), then the PGF for
-  \(c X\) for natural number \(c\) is @pX .^ c@.
+>>> necklace = integral $ divX $ inverseLambertTransform monomials
+>>> coefficients necklace
+[fromCoefficients [],
+ fromCoefficients [0 % 1,1 % 1],
+ fromCoefficients [0 % 1,(-1) % 2,1 % 2],
+ fromCoefficients [0 % 1,(-1) % 3,0 % 1,1 % 3],
+ fromCoefficients [0 % 1,0 % 1,(-1) % 4,0 % 1,1 % 4],
+ fromCoefficients [0 % 1,(-1) % 5,0 % 1,0 % 1,0 % 1,1 % 5],
+ fromCoefficients [0 % 1,1 % 6,(-1) % 6,(-1) % 6,0 % 1,0 % 1,1 % 6],...
 
-* The product of PGFs for independent random variables \(X\) and \(Y\)
-  is the PGF for \(X+Y\).
+Then the general necklace polynomials yielding the number of necklaces on \(n\)
+beads with at most \(k\) colours (<https://oeis.org/A075195 OEIS A075195>)
+are defined by
+ 
+\[
+N_n(k) = \sum_{d \mid n} M_d(k)
+\]
+ 
+and the sequence \(N_n(x)\)
+(<https://oeis.org/A054523 OEIS A054523>) is thus generated by:
 
-* The sum of the coefficients of the derivative of a PGF is the expected
-  value of the random variable.
+>>> generalNecklace = lambertTransform necklace
+>>> coefficients generalNecklace
+[fromCoefficients [],
+ fromCoefficients [0 % 1,1 % 1],
+ fromCoefficients [0 % 1,1 % 2,1 % 2],
+ fromCoefficients [0 % 1,2 % 3,0 % 1,1 % 3],
+ fromCoefficients [0 % 1,1 % 2,1 % 4,0 % 1,1 % 4],
+ fromCoefficients [0 % 1,4 % 5,0 % 1,0 % 1,0 % 1,1 % 5],
+ fromCoefficients [0 % 1,1 % 3,1 % 3,1 % 6,0 % 1,0 % 1,1 % 6],...
+
 -}
 
--- | The distribution of a single Bernoulli trial with probability \(p\)
--- of success has generating function \((1-p) + p z\).
---
--- Powers of this distribution yield the binomial distribution.
-bernoulliPGF :: (Ring a) => a -> PowerSeries a
-bernoulliPGF p = fromCoefficients [1-p, p]
+{- |
+The two-variable version of the Lambert transform maps
+a power series \( A(x,t) \) (with a zero constant term) to:
 
--- | The geometric distribution, of the number of Bernoulli trials with
--- probability \(p\) before the first success,
--- has generating function \( {p \over 1 - (1-p)z} \).
---
--- Powers of this distribution yield the negative binomial or Pascal
--- distribution.
-geometricPGF :: (Ring a) => a -> PowerSeries a
-geometricPGF p = constant p * (recipOneMinus .* (1-p))
+\[
+	B(x, t) = \sum_{n=1}^\infty A(x^n, t^n)
+\]
 
--- | The Poisson distribution with parameter \(\lambda\), of the number
--- of events with mean rate \(\lambda\) occurring in an interval,
--- has generating function \( e^{\lambda(z-1)} \).
-poissonPGF :: (Floating a) => a -> PowerSeries a
-poissonPGF l = constant (exp l) * expS .* l
+The coefficients of the two polynomial series are related by
+
+\[ b_{n,k} = \sum_{m \mid n, j \mid k} a_{m,j} \]
+
+-}
+lambertTransform2 :: (AdditiveMonoid a) =>
+    PowerSeries (Polynomial a) -> PowerSeries (Polynomial a)
+lambertTransform2 p =
+    flatten $ mulX $ fromCoefficients
+        [mapAdditive (Poly..^ k) p' .^ k | k <- [1..]]
+  where
+    p' = divX p
+
+{- |
+The inverse of 'lambertTransform2' computes the Möbius transform of the
+generated sequence, and can be computed from
+
+\[
+	A(x, t) = B(x, t) - \sum_{n=2}^\infty A(x^n, t^n)
+\]
+
+provided \(B(x,t)\) has a zero constant term.
+
+-}
+inverseLambertTransform2 :: Ring a =>
+    PowerSeries (Polynomial a) -> PowerSeries (Polynomial a)
+inverseLambertTransform2 q = mulX p'
+  where
+    p' = divX q - flatten (fromCoefficients
+        (0 : [mapAdditive (Poly..^ k) p' .^ k | k <- [2..]]))
+
+{- |
+The two-variable form of the plethystic exponential (or Euler transform)
+of a series \(A(x,t)\) with \(a_0 = 0\) is
+
+\[
+	PE[A](x,t)
+	= \exp \left( \sum_{n=1}^\infty {A(x^n, t^n) \over n} \right)
+\]
+
+The transformation has a combinatorial interpretation.
+If \(a_{n,k}\) is the number of objects of some kind having weights \(n\)
+and \(k\), then \(PE[A]\) generates the sequence whose element at
+position \(n,k\) is the number of multisets of these objects having total
+weights \(n\) and \(k\).  For example, if \(a_{n,k}\) is the number
+of connected graphs with \(n\) nodes and \(k\) edges, then \(PE[A]\)
+generates the sequence whose element at position \(n,k\) is the number
+of graphs with \(n\) nodes and \(k\) edges.
+
+-}
+pexp2 :: (Eq a, FromRational a) =>
+    PowerSeries (Polynomial a) -> PowerSeries (Polynomial a)
+pexp2 a = expS `compose` divN (lambertTransform2 (mulN a))
+
+-- | The inverse of 'pexp2'.
+plog2 :: (Eq a, FromRational a) =>
+    PowerSeries (Polynomial a) -> PowerSeries (Polynomial a)
+plog2 b =
+    divN $ inverseLambertTransform2 $ mulN $
+        negate logRecipOneMinus `compose` (1-b)
+
+-- Multivariate polynomial sequences
+
+-- | The ordinary generating function \( \sum_{n=1}^\infty x_n t^n \),
+-- the multinomial counterpart of \(xt \over 1-t\).
+ordXs :: (Eq a, Semiring a) => PowerSeries (MultiPolynomial Xs a)
+ordXs = fromCoefficients (zero:allXs)
+
+-- | The logarithmic generating function \( \sum_{n=1}^\infty x_n \frac{t^n}{n} \),
+-- the multinomial counterpart of \(x \log \frac{1}{1-t}\).
+logXs :: (Eq a, FromRational a) => PowerSeries (MultiPolynomial Xs a)
+logXs = integral (fromCoefficients allXs)
+
+-- Cycle index polynomials
+
+-- | The cycle index polynomials for identity groups \(E_n\) are
+-- generated by \( 1 \over 1 - x_1 t \).
+identityCycleIndices ::
+    (Eq a, Semiring a) => PowerSeries (MultiPolynomial Xs a)
+identityCycleIndices = compose recipOneMinus $ fromCoefficients [zero, x1]
+  where
+    x1:_ = allXs
+
+-- | The cycle index polynomials for the permutation groups on \(n\)
+-- elements consisting of the identity and reversal permutation are
+-- generated by \( 1 + x_1 t \over 1 - x_2 t^2 \).
+reversalCycleIndices ::
+    (Eq a, FromRational a) => PowerSeries (MultiPolynomial Xs a)
+reversalCycleIndices =
+    0.5*(identityCycleIndices + (one + x1t) * compose recipOneMinus x2t2)
+  where
+    x1:x2:_ = allXs
+    -- x_1 t
+    x1t = fromCoefficients [zero, x1]
+    -- x_2 t^2
+    x2t2 = fromCoefficients [zero, zero, x2]
+
+-- | The cycle index polynomials for cyclic groups \(C_n\)
+-- (<https://oeis.org/A212357 OEIS A212357>) are generated by
+--
+-- \[ 1 - \sum_{k \geq 1} \frac{\phi(k)}{k} \log(1 - x_k t^k) \]
+cyclicCycleIndices ::
+    (Eq a, FromRational a) => PowerSeries (MultiPolynomial Xs a)
+cyclicCycleIndices =
+    one +
+    (sumPowers $
+        zipWith3 term (tail (coefficients totient)) [(1::Int)..] allXs)
+  where
+    term phi k xk =
+        fromRational (toRational phi / toRational k) *
+        compose logRecipOneMinus (mulX (constant xk))
+
+-- Euler's totient function (phi, A000010)
+totient :: PowerSeries Int
+totient = inverseLambertTransform $ mulX $ derivative recipOneMinus
+
+-- sum (zipWith (.^) ps [1..])
+-- each power series must have zero constant term
+sumPowers :: (Eq a, AdditiveMonoid a) => [PowerSeries a] -> PowerSeries a
+sumPowers ps =
+    flatten (fromCoefficients (zero:[divX p .^ k | (p, k) <- zip ps [1..]]))
+
+{- |
+The cycle index polynomials for dihedral groups \(D_n\)
+(<https://oeis.org/A212355 OEIS A212355>) are generated by:
+
+\[
+\sum_{n=1}^\infty Z(D_n)(\bar x) t^n =
+	\frac{1}{2} \sum_{n=1}^\infty Z(C_n)(\bar x) t^n +
+	\frac{2 x_1 t + x_1^2 t^2 + x_2 t^2}{4(1 -  x_2 t^2)}
+\]
+
+-}
+dihedralCycleIndices ::
+    (Eq a, FromRational a) => PowerSeries (MultiPolynomial Xs a)
+dihedralCycleIndices = 0.5*cyclicCycleIndices + dihedralExtra
+
+dihedralExtra ::
+    (Eq a, FromRational a) => PowerSeries (MultiPolynomial Xs a)
+dihedralExtra =
+    (0.5*x1t + 0.25*(x1t*x1t + x2t2)) * compose recipOneMinus x2t2
+  where
+    x1:x2:_ = allXs
+    -- x_1 t
+    x1t = fromCoefficients [zero, x1]
+    -- x_2 t^2
+    x2t2 = fromCoefficients [zero, zero, x2]
+
+{- |
+The cycle index polynomials for symmetric groups \( S_n \)
+(<https://oeis.org/A036039 OEIS A036039> or
+<https://oeis.org/A279038 OEIS A279038>) are generated by:
+
+\[
+\sum_{n=1}^\infty Z(S_n)(\bar x) t^n
+	= \exp \left( \sum_{n=1}^\infty \frac{x_n}{n} t^n \right) - 1
+\]
+
+=== __Examples__
+
+>>> import Data.YAP.FiniteMap
+>>> map pretty $ coefficients symmetricCycleIndices
+["1 % 1",
+ "x1",
+ "(1 % 2)*x2 + (1 % 2)*x1^2",
+ "(1 % 3)*x3 + (1 % 2)*x1*x2 + (1 % 6)*x1^3",
+ "(1 % 4)*x4 + (1 % 3)*x1*x3 + (1 % 8)*x2^2 + (1 % 4)*x1^2*x2 + (1 % 24)*x1^4",...
+
+For example, the 4th entry encodes the polynomial
+
+\[
+Z(S_4) = \frac{1}{24} (6 x_4 + 8 x_1 x_3 + 3 x_2^2 + 6 x_1^2 x_2 + x_1^4)
+\]
+
+Indeed each polynomial \(Z(S_n)\) is a polynomial with integer
+coefficients divided by \(n!\).
+
+-}
+symmetricCycleIndices ::
+    (Eq a, FromRational a) => PowerSeries (MultiPolynomial Xs a)
+symmetricCycleIndices = compose expS logXs
+
+{- |
+The cycle index polynomials for alternating groups \(A_n\)
+(<https://oeis.org/A212358 OEIS A212358>) are generated by:
+
+\[
+\sum_{n=1}^\infty Z(A_n)(\bar x) t^n =
+	\sum_{n=1}^\infty Z(S_n)(\bar x) t^n +
+	\exp \left( - \sum_{n=1}^\infty \frac{x_n}{n} (-t)^n \right) - 1 - x_1
+\]
+
+-}
+alternatingCycleIndices ::
+    (Eq a, FromRational a) => PowerSeries (MultiPolynomial Xs a)
+alternatingCycleIndices =
+    (compose expS $ logXs) +
+    (compose expS $ negate $ (logXs .* (-1))) -
+    fromCoefficients [one, x1]
+  where
+    x1:_ = allXs
+
+{- |
+Given a cycle index polynomial for a group of permutations of
+\(n\) elements, construct the cycle index polynomial for the induced
+group of permutations over \(n(n-1) \over 2\) unordered pairs of
+elements.  (Harary & Palmer /Graphical Enumeration/, pp. 84-87)
+
+=== __Example__
+
+>>> edgeCycleIndices = mapAdditive pairCycleIndex symmetricCycleIndices
+>>> map pretty $ coefficients $ edgeCycleIndices
+["1 % 1",
+ "1 % 1",
+ "x1",
+ "(1 % 3)*x3 + (1 % 2)*x1*x2 + (1 % 6)*x1^3",
+ "(1 % 4)*x2*x4 + (1 % 3)*x3^2 + (3 % 8)*x1^2*x2^2 + (1 % 24)*x1^6",...
+
+-}
+pairCycleIndex :: (Eq a, Semiring a) =>
+    MultiPolynomial Xs a -> MultiPolynomial Xs a
+pairCycleIndex = mapIndices (fmap pairCycles)
+
+type Partition = Multiset Xs
+
+{- |
+Convert a partition of \(n\) representing cyclic decompositions of
+permutations of n elements into a partition of \(n(n-1) \over 2\) representing
+cyclic decompositions of permutations of pairs of elements.
+-}
+pairCycles :: Partition -> Partition
+pairCycles p = sum (map sameCycle ts) + diffCycle ts
+  where
+    ts = assocs p
+
+diffCycle :: [(Xs, Natural)] -> Partition
+diffCycle ts =
+    sum (map sameLengthDiffCycle ts) +
+    sum [diffLength t1 t2 | t1:rest <- tails ts, t2 <- rest]
+
+-- cycles of pairs within the same cycle
+sameCycle :: (Xs, Natural) -> Partition
+sameCycle (X k, j) = atimes j (pairCycle k)
+
+-- cycles of pairs within a cycle of length k >= 1
+pairCycle :: Natural -> Partition
+pairCycle k
+  | odd k = fromAssocs [(X k, k `div` two)]
+  | otherwise =
+    fromAssocs [(X (k `div` two), one), (X k, predNat (k `div` two))]
+
+-- cycles of pairs between different cycles of the same length
+sameLengthDiffCycle :: (Xs, Natural) -> Partition
+sameLengthDiffCycle (X k, j) =
+    fromAssocs [(X k, k * j * predNat j `div` two)]
+
+-- cycles of pairs between cycles of different lengths
+diffLength :: (Xs, Natural) -> (Xs, Natural) -> Partition
+diffLength (X k1, j1) (X k2, j2) =
+    fromAssocs [(X (lcm k1 k2), gcd k1 k2*j1*j2)]
+
+two :: Natural
+two = one + one
+
+predNat :: Natural -> Natural
+predNat n = maybe zero id (minusNaturalMaybe n one)
+
+{- |
+Given a cycle index polynomial for a group of permutations of \(n\) elements,
+construct the cycle index polynomial for the induced group of permutations
+over \(n(n-1)\) ordered pairs of distinct elements.  (Harary & Palmer
+/Graphical Enumeration/, pp. 121-122)
+
+=== __Example__
+
+>>> directedEdgeCycleIndices = mapAdditive orderedPairCycleIndex symmetricCycleIndices
+>>> map pretty $ coefficients $ directedEdgeCycleIndices
+["1 % 1",
+ "1 % 1",
+ "(1 % 2)*x2 + (1 % 2)*x1^2",
+ "(1 % 3)*x3^2 + (1 % 2)*x2^3 + (1 % 6)*x1^6",
+ "(1 % 4)*x4^3 + (1 % 3)*x3^4 + (1 % 8)*x2^6 + (1 % 4)*x1^2*x2^5 + (1 % 24)*x1^12",...
+
+-}
+orderedPairCycleIndex :: (Eq a, Semiring a) =>
+    MultiPolynomial Xs a -> MultiPolynomial Xs a
+orderedPairCycleIndex = mapIndices (fmap ordPairCycles)
+
+-- Convert a partition of n representing cyclic decompositions of
+-- permutations of \(n\) elements into a partition of \(n(n-1)\)
+-- representing cyclic decompositions of permutations of ordered pairs
+-- of distinct elements.
+ordPairCycles :: Partition -> Partition
+ordPairCycles p =
+    sum (map ordSameCycle ts) + atimes (2::Int) (diffCycle ts)
+  where
+    ts = assocs p
+
+-- cycles of ordered pairs within the same cycle
+ordSameCycle :: (Xs, Natural) -> Partition
+ordSameCycle (X k, j) = fromAssocs [(X k, predNat k * j)]
+
+-- | Pólya enumeration formula, mapping a multivariate polynomial
+-- \( P(x_1, \ldots, x_n) \) to \( P(A(x), \ldots, A(x^n)) \).
+-- Typically
+--
+-- * \(P\) is the cycle index of a permutation group \(G\) over a
+--   finite set \(X\), and
+--
+-- * \(A\) is the ordinary generating function of the
+-- number of elements of a set \(Y\) of each size.
+--
+-- Then the result is the ordinary generating function of the number
+-- of \(G\)-equivalence classes of functions from \(X\) to \(Y\) of
+-- each total size.
+polyaEnumeration :: (Eq a, Semiring a) =>
+    MultiPolynomial Xs a -> Polynomial a -> Polynomial a
+polyaEnumeration z p = evaluate subs Poly.constant z
+  where
+    subs (X k) = p Poly..^ fromIntegral k
+
+{- |
+Given the cycle index multivariate polynomial of a permutation
+group \(G\) over a finite set \(X\), returns a polynomial whose \(k\)th
+coefficient is the number of \(G\)-equivalence classes of \(k\)-sets
+of \(X\).
+This is the special case of `polyaEnumeration` with polynomial \(1+x\).
+
+=== __Examples__
+
+Each dihedral group \(D_n\) describes symmetries of bracelets (cycles that
+can be turned over) of \(n\) beads.  Hence the number of such bracelets
+with \(k\) black beads and \(n-k\) white beads
+(<https://oeis.org/A052307 OEIS A052307>) is enumerated by
+
+>>> bracelets = mapAdditive equivalenceClasses dihedralCycleIndices
+>>> map (mapAdditive Data.Ratio.numerator) $ coefficients bracelets
+[fromCoefficients [1],
+ fromCoefficients [1,1],
+ fromCoefficients [1,1,1],
+ fromCoefficients [1,1,1,1],
+ fromCoefficients [1,1,2,1,1],
+ fromCoefficients [1,1,2,2,1,1],
+ fromCoefficients [1,1,3,3,3,1,1],
+ fromCoefficients [1,1,3,4,4,3,1,1],
+ fromCoefficients [1,1,4,5,8,5,4,1,1],...
+
+An enumeration of unlabelled undirected graphs with \(n\) nodes
+and \(k\) edges (<https://oeis.org/A008406 OEIS A008406>):
+
+>>> edgeCycleIndices = mapAdditive pairCycleIndex symmetricCycleIndices
+>>> numGraphs = mapAdditive equivalenceClasses edgeCycleIndices
+>>> map (mapAdditive Data.Ratio.numerator) $ coefficients numGraphs
+[fromCoefficients [1],
+ fromCoefficients [1],
+ fromCoefficients [1,1],
+ fromCoefficients [1,1,1,1],
+ fromCoefficients [1,1,2,3,2,1,1],
+ fromCoefficients [1,1,2,4,6,6,6,4,2,1,1],
+ fromCoefficients [1,1,2,5,9,15,21,24,24,21,15,9,5,2,1,1],...
+
+An enumeration of connected unlabelled undirected graphs with \(n\) nodes
+and \(k\) edges (<https://oeis.org/A054924 OEIS A054924>):
+
+>>> map (mapAdditive Data.Ratio.numerator) $ coefficients $ plog2 numGraphs
+[fromCoefficients [],
+ fromCoefficients [1],
+ fromCoefficients [0,1],
+ fromCoefficients [0,0,1,1],
+ fromCoefficients [0,0,0,2,2,1,1],
+ fromCoefficients [0,0,0,0,3,5,5,4,2,1,1],
+ fromCoefficients [0,0,0,0,0,6,13,19,22,20,14,9,5,2,1,1],...
+
+An enumeration of unlabelled directed graphs with \(n\) nodes
+and \(k\) edges (<https://oeis.org/A052283 OEIS A052283>):
+
+>>> directedEdgeCycleIndices = mapAdditive orderedPairCycleIndex symmetricCycleIndices
+>>> numDigraphs = mapAdditive equivalenceClasses directedEdgeCycleIndices
+>>> map (mapAdditive Data.Ratio.numerator) $ coefficients numDigraphs
+[fromCoefficients [1],
+ fromCoefficients [1],
+ fromCoefficients [1,1,1],
+ fromCoefficients [1,1,4,4,4,1,1],
+ fromCoefficients [1,1,5,13,27,38,48,38,27,13,5,1,1],...
+
+An enumeration of weakly connected unlabelled directed graphs with \(n\) nodes
+and \(k\) edges (<https://oeis.org/A283753 OEIS A283753>):
+
+>>> map (mapAdditive Data.Ratio.numerator) $ coefficients $ plog2 numDigraphs
+[fromCoefficients [],
+ fromCoefficients [1],
+ fromCoefficients [0,1,1],
+ fromCoefficients [0,0,3,4,4,1,1],
+ fromCoefficients [0,0,0,8,22,37,47,38,27,13,5,1,1],...
+
+-}
+equivalenceClasses ::
+    (Eq a, Semiring a) => MultiPolynomial Xs a -> Polynomial a
+equivalenceClasses z = polyaEnumeration z (one + Poly.identity)
+
+{- $symmetric_polynomials
+
+The cycle index polynomials express complete homogeneous symmetric polynomials
+in terms of power sums \(p_k(x_1,\ldots,x_n)= \sum_{i=1}^n x_i^k\).
+The elementary symmetric polynomials are expressed in terms of power sums
+by the signed version: (<https://oeis.org/A324254 OEIS A324254>):
+
+>>> map pretty $ coefficients $ compose expS $ negate $ logXs .* (-1)
+["1 % 1",
+ "x1",
+ "((-1) % 2)*x2 + (1 % 2)*x1^2",
+ "(1 % 3)*x3 + ((-1) % 2)*x1*x2 + (1 % 6)*x1^3",
+ "((-1) % 4)*x4 + (1 % 3)*x1*x3 + (1 % 8)*x2^2 + ((-1) % 4)*x1^2*x2 + (1 % 24)*x1^4",...
+
+The inverse function
+
+\[
+\frac{d}{dt} \log \left( 1 + \sum_{n=1}^\infty x_n (-t)^n \right) =
+	{\frac{d}{dt} \sum_{n=1}^\infty x_n (-t)^n \over
+		1 + \sum_{n=1}^\infty x_n (-t)^n} =
+	{ - \sum_{n=1}^\infty n x_n (-t)^{n-1} \over
+		1 + \sum_{n=1}^\infty x_n (-t)^n}
+\]
+
+is the ordinary generating function that yields polynomials
+expressing power sums in terms of elementary symmetric polynomials
+(<https://oeis.org/A115131 OEIS A115131> or
+<https://oeis.org/A210258 OEIS A210258>):
+
+>>> map pretty $ coefficients $ (derivative ordXs * compose recipOneMinus (negate ordXs)) .* (-1)
+["x1",
+ "(-2)*x2 + x1^2",
+ "3*x3 + (-3)*x1*x2 + x1^3",
+ "(-4)*x4 + 4*x1*x3 + 2*x2^2 + (-4)*x1^2*x2 + x1^4",
+ "5*x5 + (-5)*x1*x4 + (-5)*x2*x3 + 5*x1^2*x3 + 5*x1*x2^2 + (-5)*x1^3*x2 + x1^5",...
+
+-}
+
+{- $integer_compositions
+
+A construction corresponding to @completeBell@, but with ordinary
+generating functions, counts compositions of a non-negative integer \(n\),
+or equivalently segmentations of lists of length \(n\).
+
+The ordinary counterpart of the complete Bell polynomials
+(<https://oeis.org/A048996 OEIS A048996> or
+<https://oeis.org/A072811 OEIS A072811>)
+is generated by the multinomial counterpart of
+[Pascal's triangle](#g:polynomial_sequences):
+
+\[
+{1 \over 1 - \sum_{n=1}^\infty x_n t^n} =
+	1 + \sum_{n=1}^\infty \hat B_n(x_1,\ldots, x_n) t^n
+\]
+
+This can be directly encoded:
+
+>>> map pretty $ coefficients $ compose recipOneMinus ordXs
+["1",
+ "x1",
+ "x2 + x1^2",
+ "x3 + 2*x1*x2 + x1^3",
+ "x4 + 2*x1*x3 + x2^2 + 3*x1^2*x2 + x1^4",
+ "x5 + 2*x1*x4 + 2*x2*x3 + 3*x1^2*x3 + 3*x1*x2^2 + 4*x1^3*x2 + x1^5",...
+
+In these polynomials, subscripts denote the size of each part,
+superscripts denote the number of those parts, and coefficients denote
+the number of ways of composing \(n\) elements into those parts.
+For example, the 4th entry which says that 4 may be composed
+in 1 way from one 4,
+in 2 ways from 1 and 3 (1+3 and 3+1),
+in 1 way from two 2s,
+in 3 ways from two 1s and one 2 (1+1+2, 1+2+1 and 2+1+1), and
+in 1 way from four 1s.
+
+The ordinary counterpart of the partial Bell polynomials is generated
+by \( 1 \over 1 - u \bar x (t) \), an example of a Riordan array
+(see 'Data.YAP.Powerseries.riordan'):
+
+>>> map (map pretty . Poly.coefficients) $ coefficients $ riordan one ordXs
+[["1"],
+ ["0","x1"],
+ ["0","x2","x1^2"],
+ ["0","x3","2*x1*x2","x1^3"],
+ ["0","x4","2*x1*x3 + x2^2","3*x1^2*x2","x1^4"],
+ ["0","x5","2*x1*x4 + 2*x2*x3","3*x1^2*x3 + 3*x1*x2^2","4*x1^3*x2","x1^5"],...
+
+Switching from `FiniteMap` to `Data.YAP.FiniteSet.FiniteSet` would count
+integer partitions.
+
+-}
+
+{- $noncrossing_partitions
+
+The multinomial version of the [Narayana triangle](#g:polynomial_sequences)
+satisfies
+
+\[
+A(t) = 1 + \sum_{n=1}^\infty x_n (t A(t))^n
+\]
+
+so we can define it as
+
+>>> noncrossing = 1 + compose ordXs (mulX noncrossing)
+>>> map pretty $ coefficients noncrossing
+["1",
+ "x1",
+ "x2 + x1^2",
+ "x3 + 3*x1*x2 + x1^3",
+ "x4 + 4*x1*x3 + 2*x2^2 + 6*x1^2*x2 + x1^4",
+ "x5 + 5*x1*x4 + 5*x2*x3 + 10*x1^2*x3 + 10*x1*x2^2 + 10*x1^3*x2 + x1^5",...
+
+The coefficients give the number of noncrossing partitions of each type
+(<https://oeis.org/A134264 OEIS A134264> or
+<https://oeis.org/A125181 OEIS A125181>).
+
+-}

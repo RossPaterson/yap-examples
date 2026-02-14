@@ -73,19 +73,15 @@ module Data.YAP.PowerSeries.Maclaurin (
     tree,
     lambertW,
     -- ** Trigonometric functions
-    sinS,
-    cosS,
-    secS,
-    tanS,
-    asinS,
-    atanS,
+    sinS, cosS, secS, tanS, asinS, atanS,
     -- ** Hyperbolic functions
-    sinhS,
-    coshS,
-    sechS,
-    tanhS,
-    asinhS,
-    atanhS,
+    sinhS, coshS, sechS, tanhS, asinhS, atanhS,
+
+    -- * Moment generating functions
+    -- $mgf
+    bernoulliMGF,
+    geometricMGF,
+    poissonMGF,
 
     -- * Exponential generating functions
     -- $egfs
@@ -117,15 +113,20 @@ module Data.YAP.PowerSeries.Maclaurin (
     -- ** Other polynomial sequences
     -- $other_polynomial_sequences
 
-    -- * Moment generating functions
-    -- $mgf
-    bernoulliMGF,
-    geometricMGF,
-    poissonMGF,
+    -- * Multi-variable polynomial sequences #Multi_variable_sequences#
+    -- $multipolynomial_sequences
+
+    -- ** Counting partitions: Bell polynomials #Bell_polynomials#
+    -- $bell_polynomials
+
+    -- ** Lah polynomials
+    -- $lah_polynomials
+
   ) where
 
 import Prelude.YAP
 import Data.YAP.Algebra
+import Data.YAP.FiniteMap hiding (constant)
 import qualified Data.YAP.Polynomial as Poly
 import Data.YAP.Polynomial (Polynomial, RationalFunction)
 import Data.YAP.Ratio
@@ -584,6 +585,59 @@ unsafeRecipSimple p = composeIntegral recipOneMinus (- derivative p)
 divSimple :: (Eq a, Ring a) => PowerSeries a -> PowerSeries a -> PowerSeries a
 divSimple p q = p * recipSimple q
 
+-- Moment functions
+
+{- $mgf
+The moment generating function of a random variable \(X\) is
+
+\[
+    E[e^{tX}] = \sum_{n=0}^\infty m_n {t^n \over n!}
+\]
+
+where \(m_n\) is the \(n\)th moment of the distribution of \(X\).
+
+* `one` is the MGF for the constant random variable with value 0.
+
+* `expS` is the MGF for the constant random variable with value 1.
+
+* If @pX@ is the MGF for the random variable \(X\), then the MGF for
+  \(c X\) is @pX .* c@.
+
+* The product of MGFs for independent random variables \(X\) and \(Y\)
+  is the MGF for \(X+Y\).
+
+* If a natural number valued random variable \(X\) has probability
+  generating function \(f\) (see "Data.YAP.PowerSeries#g:PGF"),
+  then its MGF is \(f(e^t)\).  We can't express this using 'compose'
+  (because the constant term of \(e^t\) is non-zero), but can often find
+  an equivalent expression.
+
+* The logarithm of the moment generating function of a distribution is
+  its cumulant generating function.
+-}
+
+-- | The distribution of a single Bernoulli trial with probability \(p\)
+-- of success has moment generating function \((1-p) + p e^t\).
+--
+-- Powers of this distribution yield the binomial distribution.
+bernoulliMGF :: (Ring a) => a -> PowerSeries a
+bernoulliMGF p = constant (1-p) + constant p * expS
+
+-- | The geometric distribution, of the number of Bernoulli trials with
+-- probability \(p\) before the first success,
+-- has moment generating function \( {p \over 1 - (1-p)e^t} \).
+--
+-- Powers of this distribution yield the negative binomial or Pascal
+-- distribution.
+geometricMGF :: (Eq a, Ring a) => a -> PowerSeries a
+geometricMGF p = divSimple (constant p) (1 - constant (1-p) * expS)
+
+-- | The Poisson distribution with parameter \(\lambda\), of the number
+-- of events with mean rate \(\lambda\) occurring in an interval,
+-- has moment generating function \( e^{\lambda(e^t-1)} \).
+poissonMGF :: (Eq a, Floating a) => a -> PowerSeries a
+poissonMGF l = compose (expS .* l) (expS - 1)
+
 -- Exponential generating functions
 
 {- $egfs
@@ -682,8 +736,7 @@ of the sequence
     b_n = \sum_{k=1}^{n} B_n(a_1, \ldots, a_n)
 \]
 
-where \(B_n\) are complete Bell polynomials
-(see "Data.YAP.FiniteMap#g:Bell_polynomials").
+where \(B_n\) are complete [Bell polynomials](#g:Bell_polynomials).
 
 === Examples
 
@@ -897,8 +950,7 @@ the polynomial sequence \(\{p_n(x)\}\) where
 	p_n(x) = \sum_{k=0}^n B_{n,k}(b_1,\ldots,b_{n-k+1}) x^k
 \]
 
-where \(B_{n,k}\) are partial Bell polynomials
-(see "Data.YAP.FiniteMap#g:Bell_polynomials").
+where \(B_{n,k}\) are partial [Bell polynomials](#g:Bell_polynomials).
 The original sequence is included as the coefficients of \(x^1\) in the
 polynomial sequence.
 
@@ -909,12 +961,14 @@ generating function
 
 \[
 	\sum_{n=0}^\infty
+		x (x+1) \cdots (x+n-1) \frac{t^n}{n!}
+	= \sum_{n=0}^\infty
 		\left( \sum_{k=0}^n c(n,k) x^k \right) \frac{t^n}{n!}
 	= {1 \over (1-t)^x}
 	= e^{x \log {1 \over 1-t}}
 \]
 
-where the coefficients \(c(n,k)\) are unsigned Stirling numbers of the
+The coefficients \(c(n,k)\) are unsigned Stirling numbers of the
 first kind (<https://oeis.org/A132393 OEIS A132393>), the number of
 permutations of \(n\) elements that have exactly \(k\) cycles.
 
@@ -928,8 +982,16 @@ permutations of \(n\) elements that have exactly \(k\) cycles.
 
 The usual Stirling numbers of the first kind \(s(n,k)\)
 (<https://oeis.org/A048994 OEIS A048994>) are the coefficients of the
-sequence of falling factorial polynomial, which have the exponential
-generating function \( e^{x \log(1 + t)} \):
+sequence of falling factorial polynomials:
+
+\[
+	\sum_{n=0}^\infty
+		x (x-1) \cdots (x-n+1) \frac{t^n}{n!}
+	= \sum_{n=0}^\infty
+		\left( \sum_{k=0}^n s(n,k) x^k \right) \frac{t^n}{n!}
+	= {(1+t)^x}
+	= e^{x \log (1+t)}
+\]
 
 >>> derivatives $ binomialType $ negate $ logRecipOneMinus .* (-1)
 [fromCoefficients [1],
@@ -942,7 +1004,8 @@ generating function \( e^{x \log(1 + t)} \):
 The sequence of Touchard polynomials has the exponential generating function
 
 \[
-	\sum_{n=0}^\infty
+	\sum_{n=0}^\infty B_n(x, \ldots, x) \frac{t^n}{n!}
+	= \sum_{n=0}^\infty
 		\left( \sum_{k=0}^n S(n,k) x^k \right) \frac{t^n}{n!}
 	= e^{x (e^t - 1)}
 	= e^{x \int_0^t e^u du}
@@ -950,7 +1013,9 @@ The sequence of Touchard polynomials has the exponential generating function
 
 where the coefficients \(S(n,k)\) are Stirling numbers of the second
 kind (<https://oeis.org/A048993 OEIS A048993>), the number of ways to
-partition a set of \(n\) elements into \(k\) non-empty subsets.
+partition a set of \(n\) elements into \(k\) non-empty subsets,
+and \( B_n(x_1, \ldots, x_n) \) is the \(n\)th complete
+[Bell polynomials](#g:Bell_polynomial).
 
 >>> derivatives $ binomialType (integral expS)
 [fromCoefficients [1],
@@ -1204,55 +1269,115 @@ The exponential generating function for this polynomial sequence
 (This expression uses 'mulX' and 'divX' to introduce cancelling factors
 so that the 'div' divides exactly.)
 
+The values of these polynomials are tabulated at
+<https://oeis.org/A103438 OEIS A103438>.
+
 -}
 
-{- $mgf
-The moment generating function of a random variable \(X\) is
+{- $multipolynomial_sequences
+
+These exponential generating functions for multinomial sequences,
+obtained by applying the exponential transform \(e^{A(\bar x, t)}\),
+reduce to sequences of binomial type ('binomialType')
+if all the variables \(x_i\) are equated.
+
+-}
+
+{- $bell_polynomials
+
+The multinomial counterpart of the Touchard polynomials
+(see 'Data.YAP.PowerSeries.Maclaurin.binomialType')
+are the Bell polynomials, which encode the ways a set of size \(n\)
+can be partitioned into \(k\) parts.
+The exponential generating function for complete Bell polynomials
+(<https://oeis.org/A036040 OEIS A036040> or
+<https://oeis.org/A080575 OEIS A080575>) is
 
 \[
-    E[e^{tX}] = \sum_{n=0}^\infty m_n {t^n \over n!}
+\exp \left( \sum_{n=1}^\infty x_n \frac{t^n}{n!} \right) =
+	1 + \sum_{n=1}^\infty B_n(x_1,\ldots, x_n) \frac{t^n}{n!}
 \]
 
-where \(m_n\) is the \(n\)th moment of the distribution of \(X\).
+This is the exponential transform of the sequence of variables:
 
-* `one` is the MGF for the constant random variable with value 0.
+>>> completeBell = compose expS $ fromDerivatives (zero:allXs)
+>>> map pretty $ derivatives $ completeBell
+["1",
+ "x1",
+ "x2 + x1^2",
+ "x3 + 3*x1*x2 + x1^3",
+ "x4 + 4*x1*x3 + 3*x2^2 + 6*x1^2*x2 + x1^4",
+ "x5 + 5*x1*x4 + 10*x2*x3 + 10*x1^2*x3 + 15*x1*x2^2 + 10*x1^3*x2 + x1^5",...
 
-* `expS` is the MGF for the constant random variable with value 1.
+In these polynomials, subscripts denote the size of each part,
+superscripts denote the number of parts of that size, and coefficients
+denote the number of ways of partitioning \(n\) elements into parts of
+those sizes.
 
-* If @pX@ is the MGF for the random variable \(X\), then the MGF for
-  \(c X\) is @pX .* c@.
+For example, the 4th entry says that a set of 4 elements may be partitioned
+in 1 way into a set of size 5,
+in 4 ways into sets of size 1 and 3,
+in 6 ways into 2 sets of size 1 and one of size 2, and so on.
 
-* The product of MGFs for independent random variables \(X\) and \(Y\)
-  is the MGF for \(X+Y\).
+Each complete Bell polynomial \(B_n\) is the sum of \(n\) partial Bell
+polynomials \(B_{n,k}\) each describing partitions into \(k\) parts:
 
-* If a natural number valued random variable \(X\) has probability
-  generating function \(f\) (see "Data.YAP.PowerSeries#g:PGF"),
-  then its MGF is \(f(e^t)\).  We can't express this using 'compose'
-  (because the constant term of \(e^t\) is non-zero), but can often find
-  an equivalent expression.
+\[
+	B_n(x_1, \ldots, x_n) = \sum_{k=1}^n B_{n,k}(x_1,\ldots,x_{n-k+1})
+\]
 
-* The logarithm of the moment generating function of a distribution is
-  its cumulant generating function.
+The exponential generating function for partial Bell polynomials is
+
+\[
+\exp \left( u \sum_{n=1}^\infty x_n \frac{t^n}{n!} \right) =
+	1 + \sum_{n=1}^\infty
+		\left( \sum_{k=1}^n B_{n,k}(x_1,\ldots,x_{n-k+1}) u^k \right)
+		\frac{t^n}{n!}
+\]
+
+This is a multinomial sequence of binomial type:
+
+>>> partialBell = binomialType $ fromDerivatives (zero:allXs)
+>>> map (map pretty . Poly.coefficients) $ derivatives $ partialBell
+[["1"],
+ ["0","x1"],
+ ["0","x2","x1^2"],
+ ["0","x3","3*x1*x2","x1^3"],
+ ["0","x4","4*x1*x3 + 3*x2^2","6*x1^2*x2","x1^4"],
+ ["0","x5","5*x1*x4 + 10*x2*x3","10*x1^2*x3 + 15*x1*x2^2","10*x1^3*x2","x1^5"],...
+
+For example, the 4th entry is a polynomial whose \(k\)th coefficient is the
+partial Bell polynomial \(B_{4,k}\):
+
+\[ B_{4,1}(x_1, x_2, x_3, x_4) = x_4 \]
+
+\[ B_{4,2}(x_1, x_2, x_3) = 4 x_1 x_3 + 3 x_2^2 \]
+
+\[ B_{4,3}(x_1, x_2) = 6 x_1^2 x_2 \]
+
+\[ B_{4,4}(x_1) = x_1^4 \]
+
+For example, \(B_{4,2}\) describes the ways in which 4 elements can be
+divided into 2 parts: 4 ways into parts of sizes 1 and 3, and 3 ways
+into 2 parts of size 2.
+
 -}
 
--- | The distribution of a single Bernoulli trial with probability \(p\)
--- of success has moment generating function \((1-p) + p e^t\).
---
--- Powers of this distribution yield the binomial distribution.
-bernoulliMGF :: (Ring a) => a -> PowerSeries a
-bernoulliMGF p = constant (1-p) + constant p * expS
+{- $lah_polynomials
 
--- | The geometric distribution, of the number of Bernoulli trials with
--- probability \(p\) before the first success,
--- has moment generating function \( {p \over 1 - (1-p)e^t} \).
---
--- Powers of this distribution yield the negative binomial or Pascal
--- distribution.
-geometricMGF :: (Eq a, Ring a) => a -> PowerSeries a
-geometricMGF p = divSimple (constant p) (1 - constant (1-p) * expS)
+The multinomial counterpart of the Lah polynomials
+(<https://oeis.org/A130561 OEIS A130561>) has generating function
 
--- | The Poisson distribution with parameter \(\lambda\), of the number
--- of events with mean rate \(\lambda\) occurring in an interval,
--- has moment generating function \( e^{\lambda(e^t-1)} \).
-poissonMGF :: (Eq a, Floating a) => a -> PowerSeries a
-poissonMGF l = compose (expS .* l) (expS - 1)
+\[
+\exp \left( \sum_{n=1}^\infty x_n t^n \right) - 1
+\]
+
+>>> map pretty $ derivatives $ compose expS $ fromCoefficients (zero:allXs)
+["1",
+ "x1",
+ "2*x2 + x1^2",
+ "6*x3 + 6*x1*x2 + x1^3",
+ "24*x4 + 24*x1*x3 + 12*x2^2 + 12*x1^2*x2 + x1^4",
+ "120*x5 + 120*x1*x4 + 120*x2*x3 + 60*x1^2*x3 + 60*x1*x2^2 + 20*x1^3*x2 + x1^5",...
+
+-}
