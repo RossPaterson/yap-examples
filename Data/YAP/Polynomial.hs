@@ -27,6 +27,7 @@ module Data.YAP.Polynomial (
     coefficients,
     unsafeCoefficients,
     evaluate,
+    prettyWith,
     pretty,
     -- * Composition
     identity,
@@ -38,10 +39,10 @@ module Data.YAP.Polynomial (
 
 import Prelude.YAP
 import Data.YAP.Algebra
-import Data.YAP.Utilities.List (longZipWith)
+import qualified Data.YAP.Utilities.List as List
 import Data.Ratio
 
-import Data.List (intercalate)
+import Data.List (intercalate, intersperse)
 
 infixl 9 .^
 infixl 9 .*
@@ -85,7 +86,7 @@ instance (AdditiveMonoid a) => AdditiveMonoid (Polynomial a) where
       | otherwise = mapAdditive (atimes n) p
 
 add :: (AdditiveMonoid a) => [a] -> [a] -> [a]
-add = longZipWith (+)
+add = List.longZipWith (+)
 
 instance (AbelianGroup a) => AbelianGroup (Polynomial a) where
     negate = mapAdditive negate
@@ -203,29 +204,43 @@ evaluate (P as) x = foldr (\ a v -> a + x*v) zero as
 
 -- | Pretty-print a polynomial, e.g.
 --
--- @pretty (fromCoefficients [3, -4, 0, -1, 5]) \"x\" = \"5x^4 - x^3 - 4x + 3\"@
-pretty :: (ToInteger a) => Polynomial a -> String -> String
-pretty (P as) x =
-    case dropWhile ((== 0) . fst) (reverse (zip (map toInteger as) terms)) of
-    [] -> "0"
-    [(a,_)] -> show a
-    (a,t):ats -> showFirst a ++ t ++ showRest ats
+-- @prettyWith "x" (fromCoefficients [2,3,1,5]) = \"2 + 3*x + x^2 + 5*x^3\"@
+prettyWith :: (Ord a, Show a, Semiring a) => String -> Polynomial a -> String
+prettyWith vname p = showsPolynomial vname 0 p ""
+
+-- | Pretty-print a polynomial with variable name @x@, e.g.
+--
+-- @pretty (fromCoefficients [2,3,1,5]) = \"2 + 3*x + x^2 + 5*x^3\"@
+pretty :: (Ord a, Show a, Semiring a) => Polynomial a -> String
+pretty = prettyWith "x"
+
+plusPrec, mulPrec :: Int
+plusPrec = 6
+mulPrec = 7
+
+showsPolynomial ::
+    (Eq a, Show a, Semiring a) => String -> Int -> Polynomial a -> ShowS
+showsPolynomial vname d (P as) =
+    showTerms vname d [(a, k) | (a, k) <- zip as [0..], a /= zero]
+
+showTerms ::
+    (Eq a, Show a, Semiring a) => String -> Int -> [(a, Int)] -> ShowS
+showTerms _ _ [] = showChar '0'
+showTerms vname d [t] = showTerm vname d t
+showTerms vname d ts = showParen (d > plusPrec) $
+    List.compose $ intersperse (showString " + ") $
+        map (showTerm vname (plusPrec+1)) ts
+
+showTerm :: (Eq a, Show a, Semiring a) => String -> Int -> (a, Int) -> ShowS
+showTerm vname d (a, k)
+  | k == 0 = showsPrec d a
+  | a == one = xk
+  | otherwise = showParen (d > mulPrec) $
+    showsPrec (mulPrec+1) a . showChar '*' . xk
   where
-    terms = "" : x : [x ++ "^" ++ show n | n <- [(2::Int)..]]
-    showFirst a
-      | a < 0 = '-':show (negate a)
-      | a == 1 = ""
-      | otherwise = show a
-    showRest [] = ""
-    showRest [(a,t)]
-      | a < 0 = " - " ++ show (negate a) ++ t
-      | a > 0 = " + " ++ show a ++ t
-      | otherwise = ""
-    showRest ((a,t):ats)
-      | a < 0 = " - " ++ show (negate a) ++ t ++ showRest ats
-      | a == 1 = " + " ++ t  ++ showRest ats
-      | a > 0 = " + " ++ show a ++ t ++ showRest ats
-      | otherwise = showRest ats
+    xk
+      | k == 1 = showString vname
+      | otherwise = showString vname . showChar '^' . shows k
 
 -- | Identity polynomial, i.e. /x/
 identity :: (Semiring a) => Polynomial a
@@ -255,9 +270,9 @@ instance (Semiring a) => Differentiable (Polynomial a) where
     derivative (P (_:as)) = P (zipWith atimes (iterate (+1) (1::Int)) as)
 
 instance (FromRational a) => Integrable (Polynomial a) where
-    integral (P as) = P (0 : zipWith (*) (map coeff [1..]) as)
+    integral (P as) = P (zero : zipWith (*) (map coeff [one..]) as)
       where
-        coeff n = fromRational (1%n)
+        coeff n = fromRational (one%n)
 
 instance AdditiveFunctor Polynomial where
     mapAdditive f (P as) = P (map f as)
