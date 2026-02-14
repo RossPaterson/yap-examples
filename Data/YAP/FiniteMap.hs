@@ -62,8 +62,6 @@ module Data.YAP.FiniteMap (
 import Prelude.YAP
 import Data.YAP.Algebra
 import Data.YAP.MonoidAdaptors
-import Data.YAP.Polynomial (Polynomial)
-import qualified Data.YAP.Polynomial as Poly
 import Data.YAP.Utilities.List as List
 
 import Data.List (intersperse, sort, sortOn)
@@ -273,10 +271,6 @@ prettyMultiPolynomialOn key showVar p =
 plusPrec, mulPrec :: Int
 plusPrec = 6
 mulPrec = 7
-
-showsMultiPolynomial :: (Eq a, Show a, Semiring a, Ord v) =>
-    (v -> String) -> Int -> MultiPolynomial v a -> ShowS
-showsMultiPolynomial showVar d p = showTerms showVar d (assocs p)
 
 showTerms :: (Eq a, Show a, Semiring a, Ord v) =>
     (v -> String) -> Int -> [(Sum (Multiset v), a)] -> ShowS

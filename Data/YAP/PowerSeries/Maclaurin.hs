@@ -127,7 +127,6 @@ module Data.YAP.PowerSeries.Maclaurin (
 import Prelude.YAP
 import Data.YAP.Algebra
 import Data.YAP.Classes
-import Data.YAP.FiniteMap hiding (constant)
 import qualified Data.YAP.Polynomial as Poly
 import Data.YAP.Polynomial (Polynomial, RationalFunction)
 import Data.YAP.Ratio
@@ -1281,6 +1280,8 @@ These exponential generating functions for multinomial sequences,
 obtained by applying the exponential transform \(e^{A(\bar x, t)}\),
 reduce to sequences of binomial type ('binomialType')
 if all the variables \(x_i\) are equated.
+
+>>> import Data.YAP.FiniteMap hiding (constant)
 
 -}
 

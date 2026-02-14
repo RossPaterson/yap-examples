@@ -22,7 +22,6 @@ module Data.YAP.Classes (
   ) where
 
 import Data.YAP.Algebra
-import Prelude.YAP
 
 -- | A differential semiring
 class (Semiring a) => Differentiable a where
