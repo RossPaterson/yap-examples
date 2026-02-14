@@ -22,6 +22,7 @@ module Data.YAP.FiniteSet (
     fromList,
     -- * Queries
     elems,
+    sumMap,
     -- * Finite formal languages
     FiniteLanguage,
     ) where
@@ -54,6 +55,10 @@ fromList xs = FiniteSet (Set.fromList xs)
 -- | The elements of the set.
 elems :: FiniteSet a -> [a]
 elems (FiniteSet s) = Set.elems s
+
+-- | Sum valuations of the elements of the set.
+sumMap :: (AdditiveMonoid b) => (a -> b) -> FiniteSet a -> b
+sumMap f = sum . map f . elems
 
 -- | '(+)' is union
 instance (Ord a) => AdditiveMonoid (FiniteSet a) where
