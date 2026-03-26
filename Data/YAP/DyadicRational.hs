@@ -63,7 +63,10 @@ countTrailingZeros n
 
 instance AdditiveMonoid DyadicRational where
     zero = DR 0 0
-    DR m1 e1 + DR m2 e2 = case compare e1 e2 of
+    DR m1 e1 + DR m2 e2
+      | m1 == 0 = DR m2 e2
+      | m2 == 0 = DR m1 e1
+      | otherwise = case compare e1 e2 of
         EQ -> dyadic (m1 + m2) e1
         LT -> DR (m1 + m2*2^(e2-e1)) e1
         GT -> DR (m1*2^(e1-e2) + m2) e2
@@ -102,6 +105,14 @@ instance Euclidean DyadicRational where
 
 instance ToRational DyadicRational where
     toRational (DR m e) = toRational m * 2^^e
+
+instance OrderedRing DyadicRational where
+    properFraction (DR m e)
+      | e >= 0 = (fromInteger (m * 2^e), 0)
+      | m >= 0 = case divMod m (2^(-e)) of
+        (q, r) -> (fromInteger q, dyadic r e)
+      | otherwise = case divMod (-m) (2^(-e)) of
+        (q, r) -> (fromInteger (-q), dyadic (-r) e)
 
 -- | Exact conversion of a floating point value to a dyadic rational.
 fromRealFloat :: (RealFloat a) => a -> DyadicRational

@@ -41,6 +41,17 @@ import Data.YAP.Algebra
 data Dirichlet a = D a a
     deriving (Eq, Show)
 
+instance (Ord a, Ring a) => Ord (Dirichlet a) where
+    compare (D a1 b1) (D a2 b2)
+      | a == 0 && b == 0 = EQ
+      | 2*a + b > 0 && b >= 0 = GT
+      | 2*a + b < 0 && b <= 0 = LT
+      | a > 0 = compare (a*(a+b)) (b*b)
+      | otherwise = compare (b*b) (a*(a+b))
+      where
+        a = a1 - a2
+        b = b1 - b2
+
 instance Functor Dirichlet where
     fmap f (D a b) = D (f a) (f b)
 
@@ -124,6 +135,42 @@ unit_simple x@(D a b)
   | b < 0 = unit_simple (x * D 1 1) - 2
   | b >= a = unit_simple (x * D 2 (-1)) + 2
   | otherwise = 0
+
+instance (Ord a, ToInteger a, Ring a) => OrderedRing (Dirichlet a) where
+    floor x = fromIntegral (floorD x)
+
+    properFraction x
+      | r == 0 || n >= 0 = (fromIntegral n, r)
+      | otherwise = (fromIntegral (n+1), r-1)
+      where
+        n = floorD x
+        r = x - inject n
+
+floorD :: (Ord a, Euclidean a, Ring a) => Dirichlet a -> a
+floorD x@(D a b)
+  | b == 0 = a
+  | otherwise = oscillation (approximations x)
+
+oscillation :: (Ord a) => [a] -> a
+oscillation xs =
+    foldr (maybe id const) (error "end of infinite list") $
+        zipWith3 comp xs (drop 1 xs) (drop 2 xs)
+
+comp :: (Ord a) => a -> a -> a -> Maybe a
+comp x y z
+  | x == z = Just (min x y)
+  | otherwise = Nothing
+
+-- Integral approximations to D a b using Newton-Raphson method.
+-- The sequence either converges on floor x or oscillates between floor
+-- x and ceiling x.
+approximations :: (Euclidean a, Ring a) => Dirichlet a -> [a]
+approximations (D a b) = iterate step (a+b)
+  where
+    c = 2*a + b
+    step n = n + (5*b*b - d*d) `div` (4*d)
+      where
+        d = 2*n - c
 
 -- | The Dirichlet integer representing \( \sqrt 5 = 2\phi - 1 \).
 sqrt5 :: (Ring a) => Dirichlet a
