@@ -399,6 +399,8 @@ instance (Semiring a) => Monoid (Character a) where
 -- \[
 --     L(s,\chi) = \sum_{n=1}^\infty \frac{\chi(n)}{n^s}
 -- \]
+-- The special case @'lSeries' ('primePrincipal' 2)@ is the Dirichlet
+-- lambda function.
 lSeries :: (AdditiveMonoid a) => Character a -> DirichletSeries a
 lSeries (Character as) = fromCoefficients $ cycle as
 
