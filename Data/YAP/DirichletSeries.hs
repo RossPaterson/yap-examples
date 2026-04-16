@@ -95,7 +95,7 @@ module Data.YAP.DirichletSeries (
 
 import Prelude.YAP
 import Data.YAP.Algebra
-import Data.YAP.Classes
+import Data.YAP.Classes (Differentiable(..), Integrable(..), AdditiveFunctor(..))
 import Data.YAP.PowerSeries (PowerSeries)
 import qualified Data.YAP.PowerSeries as PS
 import Data.YAP.Utilities.List
@@ -312,7 +312,7 @@ DS as .* k
   where
     powers = [n^k | n <- [1..]]::[Int]
     zeros = [replicate (nnk - nk - 1) zero |
-        (nnk, nk) <- zip (tail powers) powers]
+        (nnk, nk) <- zip (drop 1 powers) powers]
 
 -- | Riemann zeta function:
 -- \[
